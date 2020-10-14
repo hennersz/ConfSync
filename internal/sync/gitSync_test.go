@@ -1,4 +1,4 @@
-package sync
+package sync_test
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/hennersz/ConfSync/internal/sync"
 )
 
 type testFile struct {
@@ -87,7 +89,7 @@ func TestClone(t *testing.T) {
 		t.Fatalf("Error creating tempdir: %v", err)
 	}
 
-	syncer := NewGitSyncer(sourceRepo, destRepo)
+	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
 	err = syncer.Sync()
 	if err != nil {
 		t.Fatalf("Error syncing repo: %v", err)
@@ -113,10 +115,10 @@ func TestCloneFailIntoNonEmpty(t *testing.T) {
 
 	ioutil.WriteFile(filepath.Join(destRepo, "aFile.txt"), []byte("data"), 0644)
 
-	syncer := NewGitSyncer(sourceRepo, destRepo)
+	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
 	err = syncer.Sync()
-	if err != ErrDestNotEmpty {
-		t.Errorf("expected %v, got %v", ErrDestNotEmpty, err)
+	if err != sync.ErrDestNotEmpty {
+		t.Errorf("expected %v, got %v", sync.ErrDestNotEmpty, err)
 	}
 }
 
@@ -128,7 +130,7 @@ func TestCloneOkToNonExistentDir(t *testing.T) {
 		t.Fatalf("Error creating tempdir: %v", err)
 	}
 
-	syncer := NewGitSyncer(sourceRepo, filepath.Join(destRepo, "subdir"))
+	syncer := sync.NewGitSyncer(sourceRepo, filepath.Join(destRepo, "subdir"))
 	err = syncer.Sync()
 	if err != nil {
 		t.Errorf("Unexpected error occured: %v", err)
@@ -143,7 +145,7 @@ func TestUpdateOnSecondRun(t *testing.T) {
 		t.Fatalf("Error creating tempdir: %v", err)
 	}
 
-	syncer := NewGitSyncer(sourceDir, destRepo)
+	syncer := sync.NewGitSyncer(sourceDir, destRepo)
 	err = syncer.Sync()
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
