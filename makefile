@@ -1,6 +1,6 @@
 .PHONY: build
 build: 
-	go build -o bin/conf-sync cmd/main.go
+	go build -o bin/conf-sync cmd/confSync/main.go
 
 .PHONY: test
 test:

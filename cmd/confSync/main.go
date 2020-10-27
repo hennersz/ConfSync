@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	syncer := sync.NewGitSyncer("https://github.com/hennersz/ConfSync.git", "./test")
+	syncer := sync.NewGitSyncer("https://github.com/hennersz/ConfSyncTestRepo.git", "./source")
 	err := syncer.Sync()
 
 	if err != nil {
@@ -17,7 +17,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	u, err := updater.NewUpdater("./test")
+	u, err := updater.NewUpdater("./source")
 
 	if err != nil {
 		fmt.Printf("Something went wrong: %v", err)
