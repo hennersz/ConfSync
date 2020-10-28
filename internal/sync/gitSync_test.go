@@ -2,7 +2,9 @@ package sync_test
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,14 +16,16 @@ import (
 )
 
 type testFile struct {
-	name string
-	data []byte
+	name        string
+	data        []byte
+	permissions os.FileMode
 }
 
 var testFiles = []testFile{
 	{
 		"test.txt",
 		[]byte("hello"),
+		0644,
 	},
 }
 
@@ -30,6 +34,10 @@ func addFiles(t *testing.T, repo *git.Repository, repoDir string, files []testFi
 	for _, file := range files {
 		fileName := filepath.Join(repoDir, file.name)
 		if err := ioutil.WriteFile(fileName, file.data, 0644); err != nil {
+			return err
+		}
+
+		if err := os.Chmod(fileName, file.permissions); err != nil {
 			return err
 		}
 	}
@@ -90,7 +98,7 @@ func TestClone(t *testing.T) {
 	}
 
 	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
-	err = syncer.Sync()
+	_, err = syncer.Sync()
 	if err != nil {
 		t.Fatalf("Error syncing repo: %v", err)
 	}
@@ -113,10 +121,13 @@ func TestCloneFailIntoNonEmpty(t *testing.T) {
 		t.Fatalf("Error creating tempdir: %v", err)
 	}
 
-	ioutil.WriteFile(filepath.Join(destRepo, "aFile.txt"), []byte("data"), 0644)
+	err = ioutil.WriteFile(filepath.Join(destRepo, "aFile.txt"), []byte("data"), 0644)
+	if err != nil {
+		t.Fatalf("An error occured while writing test file: %v", err)
+	}
 
 	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
-	err = syncer.Sync()
+	_, err = syncer.Sync()
 	if err != sync.ErrDestNotEmpty {
 		t.Errorf("expected %v, got %v", sync.ErrDestNotEmpty, err)
 	}
@@ -131,7 +142,7 @@ func TestCloneOkToNonExistentDir(t *testing.T) {
 	}
 
 	syncer := sync.NewGitSyncer(sourceRepo, filepath.Join(destRepo, "subdir"))
-	err = syncer.Sync()
+	_, err = syncer.Sync()
 	if err != nil {
 		t.Errorf("Unexpected error occured: %v", err)
 	}
@@ -146,7 +157,7 @@ func TestUpdateOnSecondRun(t *testing.T) {
 	}
 
 	syncer := sync.NewGitSyncer(sourceDir, destRepo)
-	err = syncer.Sync()
+	_, err = syncer.Sync()
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
 	}
@@ -155,6 +166,7 @@ func TestUpdateOnSecondRun(t *testing.T) {
 		{
 			"test2.txt",
 			[]byte("hello"),
+			0644,
 		},
 	}
 
@@ -163,7 +175,7 @@ func TestUpdateOnSecondRun(t *testing.T) {
 		t.Fatalf("An error occured while adding files to repo: %v", err)
 	}
 
-	err = syncer.Sync()
+	_, err = syncer.Sync()
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
 	}
@@ -175,5 +187,74 @@ func TestUpdateOnSecondRun(t *testing.T) {
 	}
 	if !bytes.Equal(res, extraFiles[0].data) {
 		t.Errorf("Expected %v, got %v", testFiles[0].data, res)
+	}
+}
+
+func TestReturnFalseOnNoUpdate(t *testing.T) {
+	_, sourceDir := createRepo(t, testFiles)
+
+	destRepo, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Error creating tempdir: %v", err)
+	}
+
+	syncer := sync.NewGitSyncer(sourceDir, destRepo)
+	res, err := syncer.Sync()
+	if err != nil {
+		t.Fatalf("An unexpected error occurred: %v", err)
+	}
+
+	if !res {
+		t.Error("Expected the syncer to pull updates but it didn't")
+	}
+
+	res, err = syncer.Sync()
+	if err != nil {
+		t.Fatalf("An unexpected error occurred: %v", err)
+	}
+	if res {
+		t.Error("Expected the syncer not to update but it did")
+	}
+}
+
+func TestReadErrors(t *testing.T) {
+	_, sourceDir := createRepo(t, testFiles)
+
+	destRepo, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Error creating tempdir: %v", err)
+	}
+
+	err = os.Chmod(destRepo, 0000)
+	if err != nil {
+		t.Fatalf("Error setting destination dir permissions: %v", err)
+	}
+
+	syncer := sync.NewGitSyncer(sourceDir, destRepo)
+	_, err = syncer.Sync()
+
+	if !errors.Is(err, os.ErrPermission) {
+		t.Errorf("Expected a permission error, got: %v", err)
+	}
+}
+
+func TestWriteErrors(t *testing.T) {
+	_, sourceDir := createRepo(t, testFiles)
+
+	destRepo, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Error creating tempdir: %v", err)
+	}
+
+	err = os.Chmod(destRepo, 0444)
+	if err != nil {
+		t.Fatalf("Error setting destination dir permissions: %v", err)
+	}
+
+	syncer := sync.NewGitSyncer(sourceDir, destRepo)
+	_, err = syncer.Sync()
+
+	if !errors.Is(err, os.ErrPermission) {
+		t.Errorf("Expected a permission error, got: %v", err)
 	}
 }

@@ -4,7 +4,7 @@ build:
 
 .PHONY: test
 test:
-	go test -v -race ./internal/... -coverprofile=coverage.out
+	go test -v ./internal/... -coverprofile=coverage.out
 
 .PHONY: coverage
 coverage: test

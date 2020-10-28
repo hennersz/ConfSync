@@ -2,32 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/hennersz/ConfSync/internal/sync"
-	"github.com/hennersz/ConfSync/internal/updater"
+	"github.com/hennersz/ConfSync/internal/orchestrator"
 )
 
 func main() {
-	syncer := sync.NewGitSyncer("https://github.com/hennersz/ConfSyncTestRepo.git", "./source")
-	err := syncer.Sync()
+	err := orchestrator.SyncAndUpdate("https://github.com/hennersz/ConfSyncTestRepo.git", "./source")
 
 	if err != nil {
-		fmt.Printf("Something went wrong: %v", err)
-		os.Exit(1)
-	}
-
-	u, err := updater.NewUpdater("./source")
-
-	if err != nil {
-		fmt.Printf("Something went wrong: %v", err)
-		os.Exit(1)
-	}
-
-	err = u.Update()
-
-	if err != nil {
-		fmt.Printf("Something went wrong: %v", err)
-		os.Exit(1)
+		fmt.Printf("An error occured: %v", err)
 	}
 }
