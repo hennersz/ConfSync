@@ -3,54 +3,105 @@ package updater
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"path"
+
+	"github.com/hennersz/ConfSync/internal/operators"
 )
 
 const ConfigFileName = "config.json"
 
-type Config map[string]string
-
-type Updater struct {
-	sourceDir string
-	config    Config
+type TaskConfig struct {
+	Name string   `json:"name"`
+	Args []string `json:"args"`
 }
 
-func NewUpdater(sourceDir string) (*Updater, error) {
-	confFileData, err := ioutil.ReadFile(path.Join(sourceDir, ConfigFileName))
+type Config map[string][]TaskConfig
+
+type Updater struct {
+	sourceDir    string
+	config       Config
+	operators    map[string]operators.Operator
+	operatorKeys []string
+}
+
+type UpdaterBuilder struct {
+	sourceDir string
+	operators []operators.Operator
+}
+
+func (b *UpdaterBuilder) SrcDir(sourceDir string) *UpdaterBuilder {
+	b.sourceDir = sourceDir
+	return b
+}
+
+func (b *UpdaterBuilder) WithOperator(operator operators.Operator) *UpdaterBuilder {
+	b.operators = append(b.operators, operator)
+	return b
+}
+
+func (b *UpdaterBuilder) Build() (*Updater, error) {
+	confFileData, err := ioutil.ReadFile(path.Join(b.sourceDir, ConfigFileName))
 	if err != nil {
 		return nil, err
 	}
 
-	config := make(Config)
+	config := Config{}
 	err = json.Unmarshal(confFileData, &config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Updater{sourceDir, config}, nil
+	operators := make(map[string]operators.Operator)
+	operatorKeys := make([]string, 0, len(b.operators))
+	for _, operator := range b.operators {
+		key := operator.Name()
+		operators[key] = operator
+		operatorKeys = append(operatorKeys, key)
+	}
+
+	return &Updater{b.sourceDir, config, operators, operatorKeys}, nil
+}
+
+func New() *UpdaterBuilder {
+	return &UpdaterBuilder{}
 }
 
 func (u *Updater) Update() error {
-	for fileName, dest := range u.config {
-		sourcePath := path.Join(u.sourceDir, fileName)
-		destPath := path.Join(dest, path.Base(fileName))
-
-		fileData, err := ioutil.ReadFile(sourcePath)
-		if err != nil {
-			return err
+	for filePath, taskList := range u.config {
+		for _, task := range taskList {
+			err := u.submitTask(path.Join(u.sourceDir, filePath), task)
+			if err != nil {
+				return err
+			}
 		}
+	}
 
-		err = os.MkdirAll(dest, 0755)
-		if err != nil {
-			return err
-		}
-
-		err = ioutil.WriteFile(destPath, fileData, 0644)
+	for _, operator := range u.operators {
+		err := operator.Run()
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+type OperatorNotFoundError struct {
+	OperatorName string
+}
+
+func (e OperatorNotFoundError) Error() string {
+	return "Operator: " + e.OperatorName + " was not found"
+}
+
+func (u *Updater) submitTask(filePath string, config TaskConfig) error {
+	operator, ok := u.operators[config.Name]
+
+	if !ok {
+		return OperatorNotFoundError{config.Name}
+	}
+
+	fileName := path.Base(filePath)
+
+	return operator.SubmitTask(fileName, config.Args)
 }

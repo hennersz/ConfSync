@@ -1,0 +1,17 @@
+{
+  "branches": [{"name": "master"}, { "name": "beta"}],
+  "plugins": [
+    "@semantic-release/commit-analyzer", 
+    "@semantic-release/release-notes-generator", 
+    "@semantic-release/github",
+    ["@codedependant/semantic-release-docker", {
+      "docker": {
+        "tags": ["latest", "{version}", "{major}-latest", "{major}.{minor}"],
+        "image": "my-image",
+        "dockerfile": "Dockerfile",
+        "registry": "quay.io",
+        "project": "codedependant"
+      }
+    }]
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "test1.txt":[
+    {
+      "name": "test",
+      "args": ["arg1"]
+    }
+  ]
+}

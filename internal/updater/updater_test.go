@@ -1,131 +1,99 @@
 package updater_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
-	"path"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hennersz/ConfSync/internal/updater"
 )
 
-type testFile struct {
-	name    string
-	data    []byte
-	destDir string
+type task struct {
+	fileName string
+	args     []string
 }
 
-var testFiles = []testFile{
-	{
-		"test.txt",
-		[]byte("hello"),
-		"test/dir",
-	},
+type testOperator struct {
+	name           string
+	submittedTasks []task
+	runCalls       []time.Time
 }
 
-func initTestDir(t *testing.T, files []testFile) (string, error) {
-	t.Helper()
-
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return "", err
-	}
-
-	conf := make(map[string]string)
-
-	sourceDir := path.Join(dir, "source")
-	err = os.MkdirAll(sourceDir, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	destDir := path.Join(dir, "destination")
-	err = os.MkdirAll(destDir, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	for _, file := range files {
-		filePath := path.Join(destDir, file.destDir)
-		conf[file.name] = filePath
-		err = ioutil.WriteFile(path.Join(sourceDir, file.name), file.data, 0644)
-		if err != nil {
-			return "", err
-		}
-	}
-	confJson, err := json.Marshal(conf)
-	if err != nil {
-		return "", err
-	}
-
-	err = ioutil.WriteFile(path.Join(dir, "source", "config.json"), confJson, 0644)
-	if err != nil {
-		return "", err
-	}
-
-	return dir, nil
+func (to *testOperator) SubmitTask(fileName string, args []string) error {
+	to.submittedTasks = append(to.submittedTasks, task{fileName, args})
+	return nil
 }
 
-func TestWriteFiles(t *testing.T) {
-	rootDir, err := initTestDir(t, testFiles)
-	if err != nil {
-		t.Fatalf("Unexpected error occured: %v", err)
-	}
+func (to *testOperator) Name() string {
+	return to.name
+}
 
-	u, err := updater.NewUpdater(path.Join(rootDir, "source"))
-	if err != nil {
-		t.Fatalf("Unexpected error occured: %v", err)
-	}
-
-	err = u.Update()
-
-	if err != nil {
-		t.Fatalf("Unexpected error occured: %v", err)
-	}
-
-	data, err := ioutil.ReadFile(path.Join(rootDir, "destination", "test/dir/test.txt"))
-	if err != nil {
-		t.Fatalf("An error occured while reading test file: %v", err)
-	}
-
-	if !bytes.Equal(testFiles[0].data, data) {
-		t.Errorf("Expected %v, got %v", testFiles[0].data, data)
-	}
+func (to *testOperator) Run() error {
+	to.runCalls = append(to.runCalls, time.Now())
+	return nil
 }
 
 func TestNoConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Error occured creating temporary directory: %v", err)
-	}
+	_, err := updater.New().SrcDir("testdata/empty").Build()
 
-	_, err = updater.NewUpdater(dir)
-
-	if err == nil {
-		t.Error("Expected an error")
-	}
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("Expected %v, got %v", os.ErrNotExist, err)
 	}
 }
 
 func TestNonJsonConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
+	_, err := updater.New().SrcDir("testdata/badJson").Build()
+
+	var jsonError *json.SyntaxError
+	if !errors.As(err, &jsonError) {
+		t.Errorf("Expected a syntax error, got %T", err)
+	}
+}
+
+func TestSubmitTask(t *testing.T) {
+	to := &testOperator{name: "test"}
+
+	u, err := updater.New().SrcDir("testdata/simple").WithOperator(to).Build()
 	if err != nil {
-		t.Fatalf("Error occured creating temporary directory: %v", err)
+		t.Fatalf("An unexpected error occured: %v", err)
 	}
 
-	err = ioutil.WriteFile(path.Join(dir, "config.json"), []byte("notJson"), 0644)
+	err = u.Update()
 	if err != nil {
-		t.Fatalf("Error occured while creating config file: %v", err)
+		t.Fatalf("An unexpected error occured: %v", err)
 	}
 
-	_, err = updater.NewUpdater(dir)
+	if len(to.submittedTasks) != 1 {
+		t.Errorf("Incorrect number of tasks submitted, expected %v, got %v", 1, len(to.submittedTasks))
+	}
 
-	if err == nil {
-		t.Error("Expected an error")
+	task := to.submittedTasks[0]
+
+	if task.fileName != "test1.txt" {
+		t.Errorf("Incorrect filename submitted, expected %v, got %v", "test1.txt", task.fileName)
+	}
+
+	if !reflect.DeepEqual(task.args, []string{"arg1"}) {
+		t.Errorf("Incorrect args submitted, expected %v, got %v", []string{"arg1"}, task.args)
+	}
+
+	if len(to.runCalls) != 1 {
+		t.Errorf("Operator run function called incorrect amount of times, expected %v, got %v", 1, len(to.runCalls))
+	}
+}
+
+func TestOperatorNotFound(t *testing.T) {
+	u, err := updater.New().SrcDir("testdata/simple").Build()
+	if err != nil {
+		t.Fatalf("An unexpected error occured: %v", err)
+	}
+
+	err = u.Update()
+
+	if !errors.Is(err, updater.OperatorNotFoundError{"test"}) {
+		t.Errorf("Expected %v, got %v", updater.OperatorNotFoundError{"test"}, err)
 	}
 }
