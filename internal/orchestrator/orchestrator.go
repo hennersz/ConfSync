@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"fmt"
+
 	"github.com/hennersz/ConfSync/internal/sync"
 	"github.com/hennersz/ConfSync/internal/updater"
 	"github.com/pkg/errors"
@@ -11,19 +13,19 @@ func SyncAndUpdate(sourceRepo, workDir string) error {
 
 	shouldUpdate, err := syncer.Sync()
 	if err != nil {
-		return err
+		return fmt.Errorf("error occurred syncing: %w", err)
 	}
 
 	if shouldUpdate {
 		u, err := updater.New().SrcDir(workDir).Build()
 		if err != nil {
-			return errors.Wrap(err, "An error occured reading the config file")
+			return errors.Wrap(err, "An error occurred reading the config file")
 		}
 
 		err = u.Update()
 
 		if err != nil {
-			return errors.Wrap(err, "An error occured while updating config")
+			return errors.Wrap(err, "An error occurred while updating config")
 		}
 	}
 

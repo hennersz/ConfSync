@@ -11,8 +11,8 @@ import (
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	log.Info().Msg("Starting")
-	err := orchestrator.SyncAndUpdate("https://github.com/hennersz/ConfSyncTestRepo.git", "./source")
 
+	err := orchestrator.SyncAndUpdate("https://github.com/hennersz/ConfSyncTestRepo.git", "./source")
 	if err != nil {
 		log.Err(err).Send()
 		os.Exit(1)

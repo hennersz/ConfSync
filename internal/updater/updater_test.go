@@ -24,6 +24,7 @@ type testOperator struct {
 
 func (to *testOperator) SubmitTask(fileName string, args []string) error {
 	to.submittedTasks = append(to.submittedTasks, task{fileName, args})
+
 	return nil
 }
 
@@ -33,10 +34,13 @@ func (to *testOperator) Name() string {
 
 func (to *testOperator) Run() error {
 	to.runCalls = append(to.runCalls, time.Now())
+
 	return nil
 }
 
 func TestNoConfig(t *testing.T) {
+	t.Parallel()
+
 	_, err := updater.New().SrcDir("testdata/empty").Build()
 
 	if !errors.Is(err, os.ErrNotExist) {
@@ -45,6 +49,8 @@ func TestNoConfig(t *testing.T) {
 }
 
 func TestNonJsonConfig(t *testing.T) {
+	t.Parallel()
+
 	_, err := updater.New().SrcDir("testdata/badJson").Build()
 
 	var jsonError *json.SyntaxError
@@ -54,16 +60,18 @@ func TestNonJsonConfig(t *testing.T) {
 }
 
 func TestSubmitTask(t *testing.T) {
+	t.Parallel()
+
 	to := &testOperator{name: "test"}
 
 	u, err := updater.New().SrcDir("testdata/simple").WithOperator(to).Build()
 	if err != nil {
-		t.Fatalf("An unexpected error occured: %v", err)
+		t.Fatalf("An unexpected error occurred: %v", err)
 	}
 
 	err = u.Update()
 	if err != nil {
-		t.Fatalf("An unexpected error occured: %v", err)
+		t.Fatalf("An unexpected error occurred: %v", err)
 	}
 
 	if len(to.submittedTasks) != 1 {
@@ -86,14 +94,16 @@ func TestSubmitTask(t *testing.T) {
 }
 
 func TestOperatorNotFound(t *testing.T) {
+	t.Parallel()
+
 	u, err := updater.New().SrcDir("testdata/simple").Build()
 	if err != nil {
-		t.Fatalf("An unexpected error occured: %v", err)
+		t.Fatalf("An unexpected error occurred: %v", err)
 	}
 
 	err = u.Update()
 
-	if !errors.Is(err, updater.OperatorNotFoundError{"test"}) {
-		t.Errorf("Expected %v, got %v", updater.OperatorNotFoundError{"test"}, err)
+	if !errors.Is(err, updater.OperatorNotFoundError{OperatorName: "test"}) {
+		t.Errorf("Expected %v, got %v", updater.OperatorNotFoundError{OperatorName: "test"}, err)
 	}
 }

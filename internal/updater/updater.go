@@ -2,6 +2,7 @@ package updater
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path"
 
@@ -24,46 +25,51 @@ type Updater struct {
 	operatorKeys []string
 }
 
-type UpdaterBuilder struct {
+type Builder struct {
 	sourceDir string
 	operators []operators.Operator
 }
 
-func (b *UpdaterBuilder) SrcDir(sourceDir string) *UpdaterBuilder {
+func (b *Builder) SrcDir(sourceDir string) *Builder {
 	b.sourceDir = sourceDir
+
 	return b
 }
 
-func (b *UpdaterBuilder) WithOperator(operator operators.Operator) *UpdaterBuilder {
+func (b *Builder) WithOperator(operator operators.Operator) *Builder {
 	b.operators = append(b.operators, operator)
+
 	return b
 }
 
-func (b *UpdaterBuilder) Build() (*Updater, error) {
+func (b *Builder) Build() (*Updater, error) {
 	confFileData, err := ioutil.ReadFile(path.Join(b.sourceDir, ConfigFileName))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error occurred reading config file: %w", err)
 	}
 
 	config := Config{}
+
 	err = json.Unmarshal(confFileData, &config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error occurred parsing config: %w", err)
 	}
 
 	operators := make(map[string]operators.Operator)
 	operatorKeys := make([]string, 0, len(b.operators))
+
 	for _, operator := range b.operators {
 		key := operator.Name()
 		operators[key] = operator
+
 		operatorKeys = append(operatorKeys, key)
 	}
 
 	return &Updater{b.sourceDir, config, operators, operatorKeys}, nil
 }
 
-func New() *UpdaterBuilder {
-	return &UpdaterBuilder{}
+func New() *Builder {
+	return &Builder{}
 }
 
 func (u *Updater) Update() error {
@@ -79,7 +85,7 @@ func (u *Updater) Update() error {
 	for _, operator := range u.operators {
 		err := operator.Run()
 		if err != nil {
-			return err
+			return fmt.Errorf("error occurred running operator: %s\nerror: %w", operator.Name(), err)
 		}
 	}
 
@@ -98,7 +104,7 @@ func (u *Updater) submitTask(filePath string, config TaskConfig) error {
 	operator, ok := u.operators[config.Name]
 
 	if !ok {
-		return OperatorNotFoundError{config.Name}
+		return OperatorNotFoundError{OperatorName: config.Name}
 	}
 
 	fileName := path.Base(filePath)

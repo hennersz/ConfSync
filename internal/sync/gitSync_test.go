@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-
 	"github.com/hennersz/ConfSync/internal/sync"
 )
 
@@ -25,15 +24,16 @@ var testFiles = []testFile{
 	{
 		"test.txt",
 		[]byte("hello"),
-		0644,
+		0600,
 	},
 }
 
 func addFiles(t *testing.T, repo *git.Repository, repoDir string, files []testFile) error {
 	t.Helper()
+
 	for _, file := range files {
 		fileName := filepath.Join(repoDir, file.name)
-		if err := ioutil.WriteFile(fileName, file.data, 0644); err != nil {
+		if err := ioutil.WriteFile(fileName, file.data, 0600); err != nil {
 			return err
 		}
 
@@ -81,15 +81,17 @@ func createRepo(t *testing.T, files []testFile) (*git.Repository, string) {
 
 	if len(files) > 0 {
 		err := addFiles(t, repo, dir, files)
-
 		if err != nil {
-			t.Fatalf("An error occured while adding files to repo: %v", err)
+			t.Fatalf("An error occurred while adding files to repo: %v", err)
 		}
 	}
+
 	return repo, dir
 }
 
 func TestClone(t *testing.T) {
+	t.Parallel()
+
 	_, sourceRepo := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -99,21 +101,26 @@ func TestClone(t *testing.T) {
 
 	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
 	_, err = syncer.Sync()
+
 	if err != nil {
 		t.Fatalf("Error syncing repo: %v", err)
 	}
 
 	fileName := filepath.Join(destRepo, testFiles[0].name)
+
 	res, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("expected file not in cloned directory, %v", err)
 	}
+
 	if !bytes.Equal(res, testFiles[0].data) {
 		t.Errorf("Expected %v, got %v", testFiles[0].data, res)
 	}
 }
 
 func TestCloneFailIntoNonEmpty(t *testing.T) {
+	t.Parallel()
+
 	_, sourceRepo := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -121,19 +128,22 @@ func TestCloneFailIntoNonEmpty(t *testing.T) {
 		t.Fatalf("Error creating tempdir: %v", err)
 	}
 
-	err = ioutil.WriteFile(filepath.Join(destRepo, "aFile.txt"), []byte("data"), 0644)
+	err = ioutil.WriteFile(filepath.Join(destRepo, "aFile.txt"), []byte("data"), 0600)
 	if err != nil {
-		t.Fatalf("An error occured while writing test file: %v", err)
+		t.Fatalf("An error occurred while writing test file: %v", err)
 	}
 
 	syncer := sync.NewGitSyncer(sourceRepo, destRepo)
+
 	_, err = syncer.Sync()
-	if err != sync.ErrDestNotEmpty {
+	if !errors.Is(err, sync.ErrDestNotEmpty) {
 		t.Errorf("expected %v, got %v", sync.ErrDestNotEmpty, err)
 	}
 }
 
 func TestCloneOkToNonExistentDir(t *testing.T) {
+	t.Parallel()
+
 	_, sourceRepo := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -142,13 +152,16 @@ func TestCloneOkToNonExistentDir(t *testing.T) {
 	}
 
 	syncer := sync.NewGitSyncer(sourceRepo, filepath.Join(destRepo, "subdir"))
+
 	_, err = syncer.Sync()
 	if err != nil {
-		t.Errorf("Unexpected error occured: %v", err)
+		t.Errorf("Unexpected error occurred: %v", err)
 	}
 }
 
 func TestUpdateOnSecondRun(t *testing.T) {
+	t.Parallel()
+
 	sourceRepo, sourceDir := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -158,6 +171,7 @@ func TestUpdateOnSecondRun(t *testing.T) {
 
 	syncer := sync.NewGitSyncer(sourceDir, destRepo)
 	_, err = syncer.Sync()
+
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
 	}
@@ -166,13 +180,13 @@ func TestUpdateOnSecondRun(t *testing.T) {
 		{
 			"test2.txt",
 			[]byte("hello"),
-			0644,
+			0600,
 		},
 	}
 
 	err = addFiles(t, sourceRepo, sourceDir, extraFiles)
 	if err != nil {
-		t.Fatalf("An error occured while adding files to repo: %v", err)
+		t.Fatalf("An error occurred while adding files to repo: %v", err)
 	}
 
 	_, err = syncer.Sync()
@@ -181,16 +195,20 @@ func TestUpdateOnSecondRun(t *testing.T) {
 	}
 
 	fileName := filepath.Join(destRepo, extraFiles[0].name)
+
 	res, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("expected file not in cloned directory, %v", err)
 	}
+
 	if !bytes.Equal(res, extraFiles[0].data) {
 		t.Errorf("Expected %v, got %v", testFiles[0].data, res)
 	}
 }
 
 func TestReturnFalseOnNoUpdate(t *testing.T) {
+	t.Parallel()
+
 	_, sourceDir := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -199,6 +217,7 @@ func TestReturnFalseOnNoUpdate(t *testing.T) {
 	}
 
 	syncer := sync.NewGitSyncer(sourceDir, destRepo)
+
 	res, err := syncer.Sync()
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
@@ -212,12 +231,15 @@ func TestReturnFalseOnNoUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("An unexpected error occurred: %v", err)
 	}
+
 	if res {
 		t.Error("Expected the syncer not to update but it did")
 	}
 }
 
 func TestReadErrors(t *testing.T) {
+	t.Parallel()
+
 	_, sourceDir := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")
@@ -239,6 +261,8 @@ func TestReadErrors(t *testing.T) {
 }
 
 func TestWriteErrors(t *testing.T) {
+	t.Parallel()
+
 	_, sourceDir := createRepo(t, testFiles)
 
 	destRepo, err := ioutil.TempDir("", "")

@@ -19,3 +19,7 @@
 bin
 
 coverage.html
+
+# semantic release node files
+node_modules
+package-lock.json
