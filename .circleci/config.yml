@@ -54,7 +54,7 @@ jobs:
       - attach_workspace:
           at: ~/
       - run: ls -la
-      - run: ls -la bin
+      - run: ls -la ~
       # - run: make release
 
 workflows:
