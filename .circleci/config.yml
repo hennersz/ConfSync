@@ -25,7 +25,8 @@ jobs:
       - run: make build
       - persist_to_workspace:
           root: bin
-          path: conf-sync
+          paths:
+            - conf-sync
   
   test:
     docker:
