@@ -51,8 +51,9 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /tmp/workspace 
-      - run: make release
+          at: ~/
+      - run: ls -la
+      # - run: make release
 
 workflows:
   version: 2
@@ -77,3 +78,4 @@ workflows:
               only:
                 - master
                 - beta
+                - ci-test

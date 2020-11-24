@@ -3,7 +3,11 @@
   "plugins": [
     "@semantic-release/commit-analyzer", 
     "@semantic-release/release-notes-generator", 
-    "@semantic-release/github",
+    "@semantic-release/github", {
+      "assets": [
+        "bin/conf-sync"
+      ]
+    },
     ["@codedependant/semantic-release-docker", {
       "docker": {
         "tags": ["latest", "{version}"],
