@@ -54,7 +54,7 @@ jobs:
           version: 19.03.13
       - checkout
       - attach_workspace:
-          at: ~project/bin/
+          at: ~/project/bin/
       - run: make release
 
 workflows:
