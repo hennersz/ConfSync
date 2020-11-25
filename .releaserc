@@ -3,12 +3,12 @@
   "plugins": [
     "@semantic-release/commit-analyzer", 
     "@semantic-release/release-notes-generator", 
-    "@semantic-release/github", {
+    ["@semantic-release/github", {
       "assets": [
         "bin/conf-sync-darwin-amd64",
         "bin/conf-sync-linux-amd64"
       ]
-    },
+    }],
     ["@codedependant/semantic-release-docker", {
       "docker": {
         "tags": ["latest", "{version}"],
