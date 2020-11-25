@@ -22,7 +22,7 @@ jobs:
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
-      - run: make build
+      - run: make build-all
       - persist_to_workspace:
           root: bin
           paths:
@@ -52,10 +52,8 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: ~/
-      - run: ls -la
-      - run: ls -la ~
-      # - run: make release
+          at: ~project/bin/
+      - run: make release
 
 workflows:
   version: 2

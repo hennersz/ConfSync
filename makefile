@@ -6,6 +6,12 @@ install:
 build: 
 	go build -o bin/conf-sync cmd/confSync/main.go
 
+.PHONY: build-all
+build-all:
+	env GOOS=darwin GOARCH=amd64 go build -o bin/conf-sync-darwin-amd64 cmd/confSync/main.go
+	env GOOS=linux GOARCH=amd64 go build -o bin/conf-sync-linux-amd64 cmd/confSync/main.go
+
+
 .PHONY: test
 test:
 	go test -v ./internal/... -coverprofile=coverage.out
