@@ -26,7 +26,7 @@ jobs:
       - persist_to_workspace:
           root: bin
           paths:
-            - conf-sync
+            - conf-sync-*
   
   test:
     docker:
