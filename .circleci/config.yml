@@ -1,10 +1,30 @@
 version: 2
+
+references: 
+  restore_repo: &restore_repo
+    restore_cache:
+      keys:
+        - v1-repo-{{ .Branch }}-{{ .Revision }}
+        - v1-repo-{{ .Branch }}
+        - v1-repo
+
 jobs:
+  checkout_code:
+    docker:
+      - image: cimg/base
+    steps:
+      - *restore_repo
+      - checkout
+      - save_cache:
+          key: v1-repo-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .
+
   install:
     docker: 
       - image: circleci/golang:1.15
     steps:
-      - checkout
+      - *restore_repo
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
@@ -18,7 +38,7 @@ jobs:
     docker:
       - image: circleci/golang:1.15
     steps:
-      - checkout
+      - *restore_repo
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
@@ -32,7 +52,7 @@ jobs:
     docker:
       - image: circleci/golang:1.15
     steps:
-      - checkout
+      - *restore_repo
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
@@ -42,6 +62,7 @@ jobs:
     docker:
       - image: circleci/golang:1.15
     steps:
+      - *restore_repo
       - checkout
       - run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.33.0
       - run: make lint
@@ -52,10 +73,18 @@ jobs:
     steps:
       - setup_remote_docker:
           version: 19.03.13
-      - checkout
+      - *restore_repo
       - attach_workspace:
           at: ~/project/bin/
       - run: make release
+  
+  sync-readme:
+    docker:
+      - image: msjpq/sync-dockerhub-readme
+    steps:
+      - *restore_repo
+      - run: python /docker_readme.py --username $DOCKER_REGISTRY_USER --password $DOCKER_REGISTRY_PASSWORD --repo hennersz/conf-sync --readme './README.md'
+
 
 workflows:
   version: 2
@@ -81,3 +110,6 @@ workflows:
                 - master
                 - beta
                 - ci-test
+      - sync-readme:
+          requires:
+            - release

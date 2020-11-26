@@ -9,6 +9,10 @@ build:
 .PHONY: build-all
 build-all:
 	env GOOS=darwin GOARCH=amd64 go build -o bin/conf-sync-darwin-amd64 cmd/confSync/main.go
+	env GOOS=linux GOARCH=arm64 go build -o bin/conf-sync-linux-arm64 cmd/confSync/main.go
+	env GOOS=linux GOARCH=arm GOARM=7 go build -o bin/conf-sync-linux-armv7 cmd/confSync/main.go
+	env GOOS=linux GOARCH=arm GOARM=6 go build -o bin/conf-sync-linux-armv6 cmd/confSync/main.go
+	env GOOS=linux GOARCH=arm GOARM=5 go build -o bin/conf-sync-linux-armv5 cmd/confSync/main.go
 	env GOOS=linux GOARCH=amd64 go build -o bin/conf-sync-linux-amd64 cmd/confSync/main.go
 
 
