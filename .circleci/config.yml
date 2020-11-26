@@ -91,16 +91,24 @@ workflows:
 
   build-test-release:
     jobs:
-      - install
-      - lint
+      - checkout_code
+      - install:
+          requires:
+            - checkout_code
+      - lint:
+          requires:
+            - checkout_code
       - build: 
           requires: 
+            - checkout_code
             - install
       - test: 
           requires: 
+            - checkout_code
             - install
       - release:
           requires:
+            - checkout_code
             - lint
             - build
             - test
@@ -112,4 +120,5 @@ workflows:
                 - ci-test
       - sync-readme:
           requires:
+            - checkout_code
             - release
