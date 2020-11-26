@@ -11,7 +11,7 @@ references:
 jobs:
   checkout_code:
     docker:
-      - image: cimg/base
+      - image: cimg/base:stable
     steps:
       - *restore_repo
       - checkout
