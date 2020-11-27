@@ -85,7 +85,7 @@ jobs:
       - image: msjpq/sync-dockerhub-readme
     steps:
       - *restore_repo
-      - run: python /docker_readme.py --username $DOCKER_REGISTRY_USER --password $DOCKER_REGISTRY_PASSWORD --repo hennersz/conf-sync --readme './README.md'
+      - run: python /docker_readme.py --username $DOCKER_REGISTRY_USER --password $DOCKER_REGISTRY_PASSWORD --repo hennersz/conf-sync --readme '/home/circleci/project/README.md'
 
 
 workflows:
@@ -100,26 +100,26 @@ workflows:
       - lint:
           requires:
             - checkout_code
-      - build: 
-          requires: 
-            - checkout_code
-            - install
       - test: 
           requires: 
             - checkout_code
             - install
-      - release:
-          requires:
+      - build: 
+          requires: 
             - checkout_code
-            - lint
-            - build
-            - test
+            - install
           filters:
             branches:
               only:
                 - master
                 - beta
                 - ci-test
+      - release:
+          requires:
+            - checkout_code
+            - lint
+            - build
+            - test
       - sync-readme:
           requires:
             - checkout_code
