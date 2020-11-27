@@ -73,8 +73,7 @@ jobs:
     steps:
       - setup_remote_docker:
           version: 19.03.13
-      # - *restore_repo
-      - checkout
+      - *restore_repo
       - attach_workspace:
           at: ~/project/bin/
       - run: mkdir -p ~/.ssh
